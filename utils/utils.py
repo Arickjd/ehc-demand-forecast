@@ -4,6 +4,7 @@ from datetime import datetime
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import io
 from tqdm.notebook import tqdm
 
 from database.models import engine, Fonte, Regiao, UF, Produto, Dado
@@ -45,8 +46,25 @@ def get_data_origin_ANP():
     url = fonte.url
     session.close()
     try:
-        # Ler o CSV diretamente da web
-        df = pd.read_csv(url, sep=";", encoding="utf8", decimal=",")
+        # Baixar o conteúdo do arquivo
+        response = requests.get(url)
+        response.encoding = "utf-8" 
+        text = response.text
+        
+        # Corrigir linhas que começam com ';' unindo-as à linha anterior
+        lines = text.split("\n")
+        cleaned_lines = []
+        for line in lines:
+            if line.startswith(";") and cleaned_lines:
+                cleaned_lines[-1] += line  # Junta à linha anterior
+            else:
+                cleaned_lines.append(line)
+        
+        # Criar um novo texto limpo
+        cleaned_text = "\n".join(cleaned_lines)
+        
+        # Criar DataFrame
+        df = pd.read_csv(io.StringIO(cleaned_text), sep=";", encoding="utf8", decimal=",")
         
         # Dicionário para mapear meses
         mes_map = {
@@ -324,8 +342,8 @@ def get_dataframe_anp():
         # Transformar para formato de colunas separadas
         df = df.pivot_table(index="month", columns="produto", values="vendas", aggfunc="sum")
     
-        # Adicionar a coluna "Gasolina Equivalente" (Etanol Hidratado * 0.7)
-        df["Dem. Gasolina Eq."] = df["Dem. Etanol H."] * 0.7
+        # Adicionar a coluna "Gasolina Equivalente" (Etanol Hidratado / 1.47)
+        df["Dem. Gasolina Eq."] = df["Dem. Etanol H."] / 1.47
     
         # Adicionar a coluna "Ciclo Otto" (Gasolina Comum + Gasolina Equivalente)
         df["Dem. Ciclo Otto"] = df["Dem. Gasolina Eq."] + df["Dem. Gasolina C."]
