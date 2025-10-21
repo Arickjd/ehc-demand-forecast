@@ -1,5 +1,6 @@
 venv/
 *checkpoints/
+*logs/
 __pycache__/
 classes/
 
