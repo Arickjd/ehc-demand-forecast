@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Float, DateTime, ForeignKey
+    create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text, JSON
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker, validates  # Corrigido aqui
 from datetime import datetime
@@ -101,6 +101,51 @@ class Dado(BaseModel):
             if self.uf_id:  # Se a UF já foi fornecida
                 raise ValueError("Não é permitido fornecer Região e UF ao mesmo tempo.")
         return value
+
+
+class Noticia(Base):
+    __tablename__ = "noticias"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    manchete = Column(String, nullable=False)
+    conteudo = Column(Text, nullable=True)
+    sentimento = Column(Integer, nullable=True)  # Pode ser positivo/negativo/neutro como float
+    data_publicacao = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Noticia(manchete='{self.manchete}', sentimento={self.sentimento}, data={self.data_publicacao})>"
+
+class ModelRun(Base):
+    __tablename__ = "model_runs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    run_id = Column(String, nullable=False)  # Identificador do experimento
+    n_run = Column(Integer, nullable=False, default=1)  # Rodada dentro do run_id
+    model_name = Column(String, nullable=False)  # Nome do modelo
+    parametros = Column(JSON, nullable=True)  # Parâmetros do modelo em JSON
+    series_train = Column(JSON, nullable=True)
+
+    # Métricas de avaliação
+    mape = Column(Float, nullable=True)
+    mae = Column(Float, nullable=True)
+    mse = Column(Float, nullable=True)
+    rmse = Column(Float, nullable=True)
+    sle = Column(Float, nullable=True)
+    u1 = Column(Float, nullable=True)
+    u2 = Column(Float, nullable=True)
+
+    data_execucao = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return (
+            f"<ModelRun(model={self.model_name}, run_id={self.run_id}, n_run={self.n_run}, "
+            f"MAPE={self.mape}, MAE={self.mae}, SLE={self.sle})>"
+        )
 
 # Criar a conexão com o banco SQLite
 engine = create_engine("sqlite:///database/data.db")
