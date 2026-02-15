@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 import io
 from tqdm.notebook import tqdm
+import yfinance as yf
 
 from database.models import engine, Fonte, Regiao, UF, Produto, Dado, ModelRun
 
@@ -634,6 +635,160 @@ class ANPPrecos(FonteBehavior):
             
             return df
 
+class CambioDolarMensal(FonteBehavior):
+    NOME = "Câmbio USD/BRL"
+    TICKER = "USDBRL=X"
+
+    def get_last_update(self):
+        """
+        Última data disponível no yfinance
+        """
+        try:
+            df = yf.download(self.TICKER, period="5d", interval="1d", progress=False)
+            if df.empty:
+                return None
+            return df.index.max().to_pydatetime()
+        except:
+            return None
+
+    def get_data_origin(self):
+        """
+        Baixa a série diária e agrega para mensal (média do Close)
+        """
+        try:
+            df = yf.download(
+                self.TICKER,
+                start="2000-01-01",
+                interval="1d",
+                progress=False
+            )
+
+            if df.empty:
+                return None
+
+            df = df.reset_index()
+            df = df.rename(columns={"Date": "date", "Close": "valor"})
+
+            # Converter para datetime
+            df["date"] = pd.to_datetime(df["date"])
+
+            # Agregar para mensal (média)
+            df["month"] = df["date"].dt.to_period("M").dt.to_timestamp()
+
+            df_mensal = (
+                df.groupby("month")["valor"]
+                .mean()
+                .reset_index()
+            )
+
+            return df_mensal
+
+        except Exception as e:
+            print(e)
+            return None
+
+    def update_database(self):
+        date_obj = self.get_last_update()
+        df = self.get_data_origin()
+
+        if df is None:
+            print("Não foi possível obter os dados do dólar.")
+            return None
+
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        fonte = session.query(Fonte).filter_by(nome=self.NOME).first()
+        if not fonte:
+            print("Fonte não encontrada.")
+            session.close()
+            return
+
+        if fonte.last_updated and fonte.last_updated >= date_obj:
+            print("Câmbio já está atualizado.")
+            session.close()
+            return
+
+        # Produto USD/BRL
+        produto = session.query(Produto).filter_by(nome="USD/BRL").first()
+        if not produto:
+            print("Produto USD/BRL não cadastrado.")
+            session.close()
+            return
+
+        # Inserção incremental
+        ultimo_dado = (
+            session.query(Dado)
+            .filter_by(produto_id=produto.id, fonte_id=fonte.id)
+            .order_by(Dado.data.desc())
+            .first()
+        )
+
+        data_limite = ultimo_dado.data if ultimo_dado else None
+
+        for _, row in tqdm(df.iterrows(), total=len(df), desc="Inserindo USD/BRL"):
+            if data_limite and row["month"] <= data_limite:
+                continue
+                
+            dado = Dado(
+                data=pd.to_datetime(row["month"].iloc[0]).to_pydatetime(),
+                valor=float(row["valor"]),
+                produto=produto,
+                fonte=fonte
+            )
+            session.add(dado)
+
+        session.commit()
+
+        fonte.set_last_updated(date_obj)
+        session.commit()
+        session.close()
+
+        print("Câmbio USD/BRL atualizado com sucesso.")
+
+    def get_data(self):
+        """
+        Retorna DataFrame mensal do dólar
+        """
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        fonte = session.query(Fonte).filter_by(nome=self.NOME).first()
+        produto = session.query(Produto).filter_by(nome="USD/BRL").first()
+
+        if not fonte or not produto:
+            session.close()
+            return None
+
+        dados = (
+            session.query(Dado.data, Dado.valor)
+            .filter(
+                Dado.fonte_id == fonte.id,
+                Dado.produto_id == produto.id
+            )
+            .order_by(Dado.data)
+            .all()
+        )
+
+        session.close()
+
+        df = pd.DataFrame(dados, columns=["month", "usd_brl"])
+        df["month"] = pd.to_datetime(df["month"])
+
+        # Garantir índice mensal completo
+        full_index = pd.date_range(df["month"].min(), df["month"].max(), freq="MS")
+        df = (
+            df.set_index("month")
+              .reindex(full_index)
+              .ffill()
+              .rename_axis("month")
+              .reset_index()
+        )
+
+        return df
+
+
+
 
 def create_static_data():
     # Criar a sessão
@@ -652,10 +807,16 @@ def create_static_data():
             url="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/serie-historica-do-levantamento-de-precos",
             created_at=None,  # Exemplo de data de criação
         )
+        fonte3 = Fonte(
+          nome = "Câmbio USD/BRL",
+          url="",
+          created_at=None
+        )
         
         # Inserir a fonte no banco
         session.add(fonte1)
         session.add(fonte2)
+        session.add(fonte3)
         session.commit()
     except:
         pass
@@ -734,11 +895,12 @@ def create_static_data():
             "QUEROSENE ILUMINANTE",
             "ÓLEO COMBUSTÍVEL",
             "ÓLEO DIESEL",
-            "ÓLEO DIESEL S10"
+            "ÓLEO DIESEL S10",
+            "USD/BRL"
         ]
         
         # Transformando a primeira letra de cada palavra em maiúscula
-        produtos = [(produto.lower().title() if produto != 'GLP' and produto != 'GNV' else produto) for produto in produtos]
+        produtos = [(produto.lower().title() if produto != 'GLP' and produto != 'GNV' and produto != 'USD/BRL' else produto) for produto in produtos]
         
         # Inserindo os produtos na base de dados
         produtos_obj = [Produto(nome=produto) for produto in produtos]
