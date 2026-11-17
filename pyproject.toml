@@ -1,0 +1,36 @@
+[project]
+name = "ehc-demand-forecast"
+version = "0.1.0"
+description = "Previsão da demanda de etanol hidratado com modelos multivariados"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "seaborn",
+    "scipy",
+    "statsmodels",
+    "scikit-learn",
+    "requests",
+    "beautifulsoup4",
+    "lxml",
+    "openpyxl",
+    "tqdm",
+    "sqlalchemy>=2.0",
+    "python-dotenv",
+    "yfinance",
+    "darts",
+    "pmdarima",
+    "pytorch-lightning",
+    "torch",
+    "optuna",
+    "plotly",
+    "pyswarm",
+    "jupyterlab",
+    "ipykernel",
+    "notebook",
+]
+
+[tool.uv]
+package = false
