@@ -3,6 +3,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker, validates  # Corrigido aqui
 from datetime import datetime
+import os
+
+from dotenv import load_dotenv
+
+# Carrega as variáveis de ambiente do arquivo .env da raiz do projeto
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 # Criar a base do ORM
 Base = declarative_base()
@@ -148,5 +154,6 @@ class ModelRun(Base):
         )
 
 # Criar a conexão com o banco SQLite
-engine = create_engine("sqlite:///database/data.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database/data.db")
+engine = create_engine(DATABASE_URL)
 Base.metadata.create_all(engine)
