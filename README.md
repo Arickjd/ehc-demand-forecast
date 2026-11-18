@@ -45,4 +45,4 @@ SENA, Ellizeu Rodrigues. *Impacto de Notícias Econômicas e Climáticas na Prev
 
 KROHA, Petr; ŠKOULA, Miroslav. Hurst Exponent and Trading Signals Derived from Market Time Series. In: INTERNATIONAL CONFERENCE ON ENTERPRISE INFORMATION SYSTEMS, 20., 2018, Funchal. Proceedings of the 20th International Conference on Enterprise Information Systems. SCITEPRESS - Science and Technology Publications, 2018. p. 371-378. DOI: 10.5220/0006667003710378.
 
-
+PETRALIA, Adrien et al. Timestral. arXiv, out. 2026. DOI: 10.48550/arXiv.2610.37585. MISTRAL AI. Timestral-209M. Hugging Face, 2026. Disponível em: https://huggingface.co/mistralai/Timestral-209M. Acesso em: 17 nov. 2026.
