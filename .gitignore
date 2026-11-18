@@ -41,12 +41,34 @@ database/*.csv
 *logs/
 checkpoints/
 logs/
+classes/
+
+# --- Pesos de modelos (centenas de MB; baixe do HF Hub em vez de versionar) ---
+*.safetensors
+*.bin
+*.gguf
+*.onnx
+*.h5
+*.hdf5
+*.msgpack
 *.ckpt
 *.pt
 *.pth
 *.pkl
 *.joblib
-classes/
+/models/
+/weights/
+/weigts/
+
+# --- Arrays e arquivos grandes ---
+*.npy
+*.npz
+*.parquet
+*.feather
+*.zip
+*.7z
+*.tar
+*.tar.gz
 
 # --- Ferramentas ---
 .vscode/
